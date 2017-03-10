@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>Socket.io - Simple chat</title>
+    <script src="static/jq.js"></script>
+    <script src="./socket.io/socket.io.js"></script>
+    <link href="//cdn.bootcss.com/bootstrap/4.0.0-alpha.6/css/bootstrap-grid.min.css" rel="stylesheet">
+    <link href="//cdn.bootcss.com/bootstrap/4.0.0-alpha.6/css/bootstrap-reboot.min.css" rel="stylesheet">
+    <link href="//cdn.bootcss.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        html,body{
+            height: 100%;width: 100%;
+        }
+        body{
+            padding: 50px 50px 0;
+        }
+        #input,#name{
+            border: none;
+            border-bottom: 1px solid grey;
+        }
+        #name{
+            text-align: center;
+            vertical-align: middle;
+            margin-top: 30%;
+        }
+        #input{
+            display: none;
+            position: fixed;
+            bottom: 50px;
+            WIDTH: 80%;
+            LEFT: 10%;
+        }
+        #input:focus,#name:focus{
+            border: none;
+            border-bottom: 1px solid green;
+            box-shadow: none;
+        }
+        #content{
+            height: 80%;
+            overflow: auto;
+            display: none;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+        }
+        #frame{
+            position: absolute;
+            left: 50px;
+            right: 50px;
+            bottom: 5rem;
+            top: 2rem;
+        }
+    </style>
+</head>
+<body>
+<div id="frame">
+    <h1>WS聊天室</h1>
+    <small id="roomInfo"></small>
+    <div class="pannel" id="content"></div>
+    <input class="form-control" type="text" id="input" placeholder/>
+    <input class="form-control" type="text" id="name" data-type="entername" placeholder="请输入一个名字"/>
+</div>
+</body>
+<script>
+    $(function () {
+        var content = $('#content');
+        var $inputs = $('#input,#name');
+        var myName = false;
+
+        var socket = io.connect(':3000');
+
+        // 收到未取名事件
+        socket.on('memberInfos',function(data){
+            console.log(data);
+            $('#roomInfo').text('当前在线用户('+data.length+')：'+data.join('、'))
+        });
+
+        // 收到未取名事件
+        socket.on('unnamed',function(data){
+            $('#name').attr('placeholder',data);
+        });
+
+        // 收到已取名事件
+        socket.on('named',function(data){
+            $('#name').hide();
+            content.show()
+            $('#input').show().attr('placeholder',data+"说:");
+        });
+
+        // 收到消息事件
+        socket.on('message',function(json){
+            var p = '<p><span style="font-weight: 900;;color:'+json.color+';">' + json.author+'</span> @ <small>'+ tmStampToTime(json.time)+ ' </small>:<br>&nbsp&nbsp&nbsp&nbsp '+json.text+'</p>';
+            content.append(p);
+            content.scrollTop(content[0].scrollHeight);
+        });
+
+        // 收到消息事件
+        socket.on('offline',function(data){
+            var p = '<small style="text-align: center">'+data+'</small><br>';
+            content.append(p);
+            content.scrollTop(content[0].scrollHeight);
+        });
+
+        //通过“回车”提交聊天信息
+        $inputs.keydown(function(e) {
+            if (e.keyCode === 13) {
+                var $this = $(this);
+                var msg = $this.val();
+                if($this.attr('data-type')=='entername'){
+                    socket.emit('entername',msg);
+                    $this.hide();
+                    return;
+                }
+                if (!msg) return;
+                socket.send(msg);
+
+                $(this).val('');
+                if (myName === false) {
+                    myName = msg;
+                }
+            }
+        });
+    });
+
+    // 时间戳转换
+    function tmStampToTime(tmStamp){
+        var dateObj = new Date(tmStamp);
+        return dateObj.getFullYear()+"-"+
+                ("00"+(dateObj.getMonth()+1)).substr(-2)+"-"+
+                ("00"+(dateObj.getDay()+1)).substr(-2,2)+" "+
+                ("00"+dateObj.getHours()).substr(-2,2)+":"+
+                ("00"+dateObj.getMinutes()).substr(-2,2)+":"+
+                ("00"+dateObj.getSeconds()).substr(-2,2)
+    }
+</script>
+</html>
